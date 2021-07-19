@@ -1,29 +1,9 @@
-from config import Config
 import numpy as np
 import os
-import PIL
-import PIL.Image
-#import tensorflow as tf
-#import tensorflow_datasets as tfds
-#import pathlib
 from tensorflow.python.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.python.keras.callbacks import ModelCheckpoint
-from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.layers import Conv2D
-from tensorflow.python.keras.layers import Activation
-from tensorflow.python.keras.layers import MaxPooling2D
-from tensorflow.python.keras.layers import Flatten
-from tensorflow.python.keras.layers import Dense
-from tensorflow.python.keras.layers import BatchNormalization
-from tensorflow.python.keras.layers import Dropout
-from tensorflow.python.keras.optimizers import RMSprop
-from tensorflow.python.keras import layers
-from tensorflow.python.keras import regularizers
+
 import sys
-from tensorflow.keras.optimizers import SGD
-from tensorflow.keras.optimizers import Adam
 from matplotlib import pyplot
-#from matplotlib.image import imread
 import time
 from tensorflow.python.keras.preprocessing.image import load_img
 from tensorflow.python.keras.preprocessing.image import img_to_array
@@ -31,14 +11,9 @@ from tensorflow.python.keras.models import load_model
 import cv2
 from tensorflow.python.keras.callbacks import EarlyStopping
 from tensorflow.python.keras.callbacks import ModelCheckpoint
+from tqdm import tqdm
+from model import *
 
-from tensorflow.python.keras.applications.resnet import ResNet50
-from tensorflow.python.keras.applications.vgg19 import VGG19
-from tensorflow.python.keras.applications.vgg16 import VGG16
-from tensorflow.python.keras.applications.mobilenet_v2 import mobilenet_v2
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.preprocessing import image
-from tensorflow.python.keras.applications.vgg16 import preprocess_input
 
 #import autokeras as ak
 
@@ -52,7 +27,7 @@ from tensorflow.python.keras.applications.vgg16 import preprocess_input
 
 # Press the green button in the gutter to run the script.
 
-def summarize_diagnostics(history):
+def summarize_diagnostics(history, model_name):
     pyplot.subplot(211)
     pyplot.title('Cross Entropy Loss')
     pyplot.plot(history.history['loss'], color='blue', label='train')
@@ -68,72 +43,22 @@ def summarize_diagnostics(history):
     pyplot.legend()
     pyplot.tight_layout()
     # save plot to file
-    filename = sys.argv[0].split('/')[-1]
-    pyplot.savefig(filename + '_plot' + '.png')
+    pyplot.savefig(model_name + "_" + time.strftime("%Y%m%d_%H%M%S") + '_plot' + '.png')
     pyplot.close()
 
-def model_structure():
+def train(model_name=None):
+    #model = model_structure()
+    if model_name == "org":
+        model = model_org()
+    elif model_name == "res1":
+        model = model_myres1()
+    elif model_name == "res2":
+        model = model_myres2()
+    else:
+        model = model_vgg16()
 
-    # vgg16_model = VGG16(pooling='avg', weights='imagenet', include_top=False, input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
-    # for layers in vgg16_model.layers:
-    #     layers.trainable=False
-    # last_output = vgg16_model.layers[-1].output
-    # vgg_x = Flatten()(last_output)
-    # vgg_x = Dense(4096, activation='relu', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
-    # vgg_x = Dropout(0.5)(vgg_x)
-    # vgg_x = Dense(2048, activation='relu', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
-    # vgg_x = Dropout(0.1)(vgg_x)
-    # vgg_x = Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
-    # vgg_x = Dropout(0.1)(vgg_x)
-    # vgg_x = Dense(6, activation='softmax', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
-    # vgg16_final_model = Model(vgg16_model.input, vgg_x)
-    # vgg16_final_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-    # pre_trained_vgg = VGG16(include_top=False, weights='imagenet', input_shape=(IMAGE_SIZE, IMAGE_SIZE, 3))
-    # pre_trained_vgg.trainable=False
-    # pre_trained_vgg.summary()
-    # model = Sequential()
-    # model.add(pre_trained_vgg)
-    # model.add(Flatten())
-    # model.add(Dense(4096, activation='relu'))
-    # model.add(BatchNormalization())
-    # #model.add(Dropout(0.5))
-    # model.add(Dense(2048, activation='relu'))
-    # model.add(BatchNormalization())
-    # model.add(Dense(1024, activation='relu'))
-    # model.add(BatchNormalization())
-    # model.add(Dense(6, activation='softmax'))
-    # model.summary()
-    # model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-    model = Sequential()
-    model.add(Conv2D(32, (3, 3), padding='same'
-                     , input_shape=(Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3)))
-    model.add(BatchNormalization())
-    model.add(Activation("relu"))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-
-    model.add(Conv2D(64, (3, 3), padding='same'))
-    model.add(BatchNormalization())
-    model.add(Activation("relu"))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-
-    model.add(Flatten())
-    model.add(Dense(128))
-    model.add(BatchNormalization())
-    model.add(Activation("relu"))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(6, activation='softmax'))
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-    return model
-    #return classifier
-    #return vgg16_final_model
-
-def train():
-    model = model_structure()
     print(model.summary())
+
     train_datagen = ImageDataGenerator(rescale=1. / 255,
                                        validation_split=0.1
                                        )
@@ -182,11 +107,12 @@ def train():
     # print(val_set.class_indices)
     # print(output)
 
-    summarize_diagnostics(history)
+    summarize_diagnostics(history, model_name = model_name)
     return round(acc * 100.0, 3)
 
 def load_image(filename):
     img = load_img(filename, target_size=(Config.IMAGE_SIZE, Config.IMAGE_SIZE))
+    #img = load_img(filename)
     img = img_to_array(img)
     img = img.reshape(1, Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3)
     img = img.astype('float32')
@@ -203,11 +129,11 @@ def run_classifier():
     progress = 0
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # cuda open success 안뜨게하기
 
-    predict_dataset = 'C:/Users/AI/PycharmProjects/class/dup_image_person12'
-    for filename in os.listdir(predict_dataset):
+    predict_dataset = Config.TEST_DIR
+    for filename in tqdm(os.listdir(predict_dataset)):
         if filename.endswith(".jpg"):
             progress += 1
-            print("progress: {}, filename: {} ".format(progress, filename))
+            #print("progress: {}, filename: {} ".format(progress, filename))
             img = load_image(os.path.join(predict_dataset, filename))
             result = model.predict_generator(img)
             #print(result)
@@ -255,6 +181,9 @@ def run_classifier():
 
 if __name__ == '__main__':
     #run_classifier()
-    train()
+    train(model_name="org")
+    train(model_name="res1")
+    train(model_name="res2")
+    train(model_name="vgg16")
 
 
