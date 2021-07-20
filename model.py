@@ -10,6 +10,7 @@ from tensorflow.python.keras.layers import Dropout
 from tensorflow.python.keras.layers import Input
 from tensorflow.python.keras.layers import add
 from tensorflow.python.keras.layers import GlobalAveragePooling2D
+from tensorflow.python.keras.constraints import max_norm
 from tensorflow.keras.utils import plot_model
 from tensorflow.python.keras.optimizers import RMSprop
 from tensorflow.python.keras import layers
@@ -20,21 +21,28 @@ from tensorflow.python.keras.applications.vgg16 import VGG16
 from tensorflow.python.keras.preprocessing import image
 from tensorflow.python.keras.applications.vgg16 import preprocess_input
 from config import Config
+from tensorflow.python.keras.metrics import Recall
 
-def model_myres2():
+def model_my4():
     inputs = Input(shape=(Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3))
     x1 = Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
+    x1 = BatchNormalization()(x1)
     x2_pure = Conv2D(32, (3, 3), activation='relu', padding='same')(x1)
+    x2_pure = BatchNormalization()(x2_pure)
     x2 = add([x1, x2_pure])
     x3_pure = Conv2D(32, (3, 3), activation='relu', padding='same')(x2)
+    x3_pure = BatchNormalization()(x3_pure)
     x3_pure2 = add([x1, x3_pure])
     x3 = add([x3_pure2, x2])
     y1 = MaxPooling2D(pool_size=(2, 2))(x3)
 
     y1_pure = Conv2D(64, (3, 3), activation='relu', padding='same')(y1)
+    y1_pure = BatchNormalization()(y1_pure)
     y2_pure = Conv2D(64, (3, 3), activation='relu', padding='same')(y1_pure)
+    y2_pure = BatchNormalization()(y2_pure)
     y2 = add([y1_pure, y2_pure])
     y3_pure = Conv2D(64, (3, 3), activation='relu', padding='same')(y2)
+    y3_pure = BatchNormalization()(y3_pure)
     y3 = add([y3_pure, y2])
     y3 = MaxPooling2D(pool_size=(2, 2))(y3)
 
@@ -46,16 +54,32 @@ def model_myres2():
     model = Model(inputs, outputs, name='myres')
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
-def model_org():
+
+def model_my1():
+    # inputs = Input(shape=(Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3))
+    # x1 = Conv2D(32, (3, 3), padding='same')(inputs)
+    # x1 = Activation('relu')(x1)
+    # x1 = MaxPooling2D(pool_size=(2, 2))(x1)
+    #
+    # x2 = Conv2D(64, (3, 3), padding='same')(x1)
+    # x2 = Activation('relu')(x2)
+    # x2 = MaxPooling2D(pool_size=(2, 2))(x2)
+    #
+    # outputs = GlobalAveragePooling2D()(x2)
+    # outputs = Dense(256)(outputs)
+    # outputs = Dense(6, activation='softmax')(outputs)
+    #
+    # model = Model(inputs, outputs, name='my_model1')
+    # model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    # return model
+
     model = Sequential()
     model.add(Conv2D(32, (3, 3), padding='same'
                      , input_shape=(Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3)))
-    model.add(BatchNormalization())
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
     model.add(Conv2D(64, (3, 3), padding='same'))
-    model.add(BatchNormalization())
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -67,25 +91,27 @@ def model_org():
 
     model.add(Dense(6, activation='softmax'))
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
+    #model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=[Recall(name='recall')])
     return model
+
 def model_vgg16():
     vgg16_model = VGG16(pooling='avg', weights='imagenet', include_top=False, input_shape=(Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3))
     for layers in vgg16_model.layers:
         layers.trainable=False
     last_output = vgg16_model.layers[-1].output
     vgg_x = Flatten()(last_output)
-    vgg_x = Dense(4096, activation='relu', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
+    vgg_x = Dense(4096, activation='relu')(vgg_x)
     vgg_x = Dropout(0.5)(vgg_x)
-    vgg_x = Dense(2048, activation='relu', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
+    vgg_x = Dense(2048, activation='relu')(vgg_x)
     vgg_x = Dropout(0.1)(vgg_x)
-    vgg_x = Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
+    vgg_x = Dense(1024, activation='relu')(vgg_x)
     vgg_x = Dropout(0.1)(vgg_x)
-    vgg_x = Dense(6, activation='softmax', kernel_regularizer=regularizers.l2(0.01))(vgg_x)
+    vgg_x = Dense(6, activation='softmax')(vgg_x)
     vgg16_final_model = Model(vgg16_model.input, vgg_x)
     vgg16_final_model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return vgg16_final_model
-def model_myres1():
+
+def model_my2():
     inputs = Input(shape=(32, 32, 3), name='img')
     x = Conv2D(32, (3, 3), activation='relu')(inputs)
     x = Conv2D(64, (3, 3), activation='relu')(x)
@@ -107,4 +133,55 @@ def model_myres1():
 
     model = Model(inputs, outputs, name='small_residual')
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+def model_my3():
+    inputs = Input(shape=(64, 64, 3), name='my3')
+    x1 = Conv2D(16, (3, 3), activation='relu', padding='same')(inputs)
+    x1 = BatchNormalization()(x1)
+    x1 = MaxPooling2D(pool_size=(2, 2))(x1)
+
+    y1 = Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
+    y1 = BatchNormalization()(y1)
+    y1 = MaxPooling2D(pool_size=(2, 2))(y1)
+
+    x2_pure = Conv2D(32, (3, 3), activation='relu', padding='same')(x1)
+    x2_pure = BatchNormalization()(x2_pure)
+    x2 = add([x2_pure, y1])
+
+    y2_pure = Conv2D(16, (1, 1), activation='relu', padding='same')(y1)
+    y2_pure = BatchNormalization()(y2_pure)
+    y2 = add([y2_pure, x1])
+
+    x3 = Conv2D(64, (3, 3), activation='relu')(x2)
+    x3 = BatchNormalization()(x3)
+
+    x3 = Conv2D(64, (3, 3), activation='relu')(x3)
+    x3 = BatchNormalization()(x3)
+    x4_pure = MaxPooling2D(pool_size=(2, 2))(x3) # 14 14 64
+
+    y3_pure = Conv2D(32, (3, 3), activation='relu', padding='same')(y2)
+    y3_pure = BatchNormalization()(y3_pure)
+    y3 = add([y3_pure, x2])
+
+    y3 = Conv2D(64, (3, 3), activation='relu', padding='same')(y3)
+    y3 = BatchNormalization()(y3)
+    y3 = MaxPooling2D(pool_size=(2, 2))(y3)
+
+    y4 = Conv2D(64, (3, 3), activation='relu')(y3)
+    y4 = BatchNormalization()(y4)
+
+    x4 = add([x4_pure, y4])
+    x4 = MaxPooling2D(pool_size=(2, 2))(x4)
+
+    x4 = GlobalAveragePooling2D()(x4)
+    x4 = Dense(512)(x4)
+    x4 = BatchNormalization()(x4)
+    x4 = Activation('relu')(x4)
+    x4 = Dropout(0.5)(x4)
+    outputs = Dense(6, activation='softmax')(x4)
+    model = Model(inputs, outputs, name='my3')
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    print(model.summary())
     return model

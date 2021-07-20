@@ -12,7 +12,10 @@ import cv2
 from tensorflow.python.keras.callbacks import EarlyStopping
 from tensorflow.python.keras.callbacks import ModelCheckpoint
 from tqdm import tqdm
+
+import data_prepare
 from model import *
+from data_prepare import *
 
 
 #import autokeras as ak
@@ -47,40 +50,10 @@ def summarize_diagnostics(history, model_name):
     pyplot.close()
 
 def train(model_name=None):
-    #model = model_structure()
-    if model_name == "org":
-        model = model_org()
-    elif model_name == "res1":
-        model = model_myres1()
-    elif model_name == "res2":
-        model = model_myres2()
-    else:
-        model = model_vgg16()
-
+    model = globals()[model_name]()
     print(model.summary())
+    training_set, val_set = data_prepare.load_datasets()
 
-    train_datagen = ImageDataGenerator(rescale=1. / 255,
-                                       validation_split=0.1
-                                       )
-    #test_datagen = ImageDataGenerator(rescale=1. / 255)
-    #val_datagen = ImageDataGenerator(rescale=1. / 255)
-    #val_datagen = ImageDataGenerator(validation_split=0.1)
-    training_set = train_datagen.flow_from_directory(Config.TRAIN_DIR,
-                                                     target_size=(Config.IMAGE_SIZE, Config.IMAGE_SIZE),
-                                                     batch_size=Config.BATCH_SIZE,
-                                                     classes=Config.CLASSES,
-                                                     class_mode='categorical',
-                                                     shuffle=True,
-                                                     subset='training'
-                                                     )
-    val_set = train_datagen.flow_from_directory(Config.TRAIN_DIR,
-                                                target_size=(Config.IMAGE_SIZE, Config.IMAGE_SIZE),
-                                                batch_size=Config.BATCH_SIZE,
-                                                classes=Config.CLASSES,
-                                                class_mode='categorical',
-                                                shuffle=False,
-                                                subset='validation'
-                                               )
     early_stopping = EarlyStopping()
     print(len(training_set))
     print(len(val_set))
@@ -126,13 +99,11 @@ def run_classifier():
     # img = load_image('C:/Users/AI/PycharmProjects/class/datasets/test/upper/20210514_181704_person_2.jpg')
     # result = model.predict(img)
     # print(result[0])
-    progress = 0
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # cuda open success 안뜨게하기
 
     predict_dataset = Config.TEST_DIR
     for filename in tqdm(os.listdir(predict_dataset)):
         if filename.endswith(".jpg"):
-            progress += 1
             #print("progress: {}, filename: {} ".format(progress, filename))
             img = load_image(os.path.join(predict_dataset, filename))
             result = model.predict_generator(img)
@@ -177,13 +148,10 @@ def run_classifier():
             #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/one_human/', filename), org_img)
             # elif np.argmax(result[0]) == 4:
             #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
+            #
             #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/upper/', filename), org_img)
 
 if __name__ == '__main__':
-    #run_classifier()
-    train(model_name="org")
-    train(model_name="res1")
-    train(model_name="res2")
-    train(model_name="vgg16")
-
+    run_classifier()
+    #train(model_name="model_my1")
 

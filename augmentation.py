@@ -3,16 +3,16 @@ from tqdm import tqdm
 import os
 import numpy as np
 import imutils
-inst = {'flip': 1,
-        'GaussianBlur': 1,
+inst = {'flip': 0,
+        'GaussianBlur': 0,
         'brightness': 1,
-        'rotate': 1
+        'rotate': 0
        }
 remove_augmentation = False
 brightness = 10
 rotate_angle = 10
 gaussian_kernel = 5
-class_name = 'cycle'
+class_name = 'non_human'
 iter = 0
 directory = 'C:/Users/AI/PycharmProjects/class/datasets/train/'+class_name
 file_list = [filenames for (filenames) in os.listdir(directory)]
