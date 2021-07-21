@@ -3,22 +3,22 @@ from tqdm import tqdm
 import os
 import numpy as np
 import imutils
-inst = {'flip': 0,
+inst = {'flip': 1,
         'GaussianBlur': 0,
-        'brightness': 1,
+        'brightness': 0,
         'rotate': 0
        }
 remove_augmentation = False
 brightness = 10
 rotate_angle = 10
 gaussian_kernel = 5
-class_name = 'non_human'
+class_name = 'upper'
 iter = 0
 directory = 'C:/Users/AI/PycharmProjects/class/datasets/train/'+class_name
 file_list = [filenames for (filenames) in os.listdir(directory)]
 file_list_jpg = [file for file in file_list if file.endswith(".jpg")]
 if not remove_augmentation:
-    for filename in tqdm(file_list_jpg):
+    for filename in tqdm(os.listdir(directory)):
         iter += 1
         if iter > 10000:
             break
