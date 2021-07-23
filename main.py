@@ -1,41 +1,24 @@
-import configparser
-
+import tensorflow as tf
+from PIL import Image
 import matplotlib.pyplot as plt
-import numpy as np
+# import os
+# from glob import glob
+# import numpy as np
+# from tqdm import tqdm
+# import cv2
+# from tensorflow.keras.utils import to_categorical
+# from tensorflow.keras import layers
+from tensorflow.keras.models import load_model
+import tensorflow.keras.backend as K
+from tensorflow.keras.callbacks import ModelCheckpoint
+from data_prepare import *
+from model import *
+from config import *
+import time
 import os
 
-import sipconfig
-from tensorflow.python.keras.preprocessing.image import ImageDataGenerator
 
-import sys
-from matplotlib import pyplot
-import time
-from tensorflow.python.keras.preprocessing.image import load_img
-from tensorflow.python.keras.preprocessing.image import img_to_array
-from tensorflow.python.keras.models import load_model
-import cv2
-from tensorflow.python.keras.callbacks import EarlyStopping
-from tensorflow.python.keras.callbacks import ModelCheckpoint
-from tqdm import tqdm
-
-import data_prepare
-from model import *
-from data_prepare import *
-
-
-#import autokeras as ak
-
-# dataset/
-#       upper/
-#       lower/
-#       one_human/
-#       multi_human/
-#       cycle/
-#       non_human/
-
-# Press the green button in the gutter to run the script.
-
-def summarize_diagnostics(history, model_name):
+def summarize_diagnostics(history):
     fig, ax = plt.subplots(2, 2)
 
     #pyplot.subplot(211)
@@ -47,199 +30,227 @@ def summarize_diagnostics(history, model_name):
     pyplot.legend()
     # plot accuracy
     #pyplot.subplot(221)
+    # pyplot = ax[1, 0]
+    # pyplot.set_title('Accuracy')
+    # pyplot.plot(history.history['accuracy'], color='blue', label='train')
+    # pyplot.legend()
+    # pyplot.plot(history.history['val_accuracy'], color='orange', label='test')
+    # pyplot.legend()
+
     pyplot = ax[1, 0]
     pyplot.set_title('Classification f1-score')
-    pyplot.plot(history.history['f1_m'], color='blue', label='train')
+    pyplot.plot(history.history['f1'], color='blue', label='train')
     pyplot.legend()
-    pyplot.plot(history.history['val_f1_m'], color='orange', label='test')
+    pyplot.plot(history.history['val_f1'], color='orange', label='test')
     pyplot.legend()
 
     #pyplot.subplot(212)
     pyplot = ax[0, 1]
     pyplot.set_title('Classification recall')
-    pyplot.plot(history.history['recall_m'], color='blue', label='train')
+    pyplot.plot(history.history['recall'], color='blue', label='train')
     pyplot.legend()
-    pyplot.plot(history.history['val_recall_m'], color='orange', label='test')
+    pyplot.plot(history.history['val_recall'], color='orange', label='test')
     pyplot.legend()
 
     #.subplot(222)
     pyplot = ax[1, 1]
     pyplot.set_title('Classification precision')
-    pyplot.plot(history.history['precision_m'], color='blue', label='train')
+    pyplot.plot(history.history['precision'], color='blue', label='train')
     pyplot.legend()
-    pyplot.plot(history.history['val_precision_m'], color='orange', label='test')
+    pyplot.plot(history.history['val_precision'], color='orange', label='test')
     pyplot.legend()
     fig.tight_layout()
     # save plot to file
-    fig.savefig(model_name + "_" + time.strftime("%Y%m%d_%H%M%S") + '_plot' + '.png')
+    fig.savefig(time.strftime("%Y%m%d_%H%M%S") + '_plot' + '.png')
 
-def train(model_name=None):
-    model = globals()[model_name]()
-    if model_name == "model_vgg16":
-        Config.IMAGE_SIZE = 224
-    elif model_name == "model_my1":
-        Config.IMAGE_SIZE = 32
-    elif model_name == "model_my2":
-        Config.IMAGE_SIZE = 32
-    elif model_name == "model_my3":
-        Config.IMAGE_SIZE = 64
-    elif model_name == "model_my4":
-        Config.IMAGE_SIZE = 64
-    print(Config.IMAGE_SIZE)
+def recall(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
 
-    print(model.summary())
-    training_set, val_set, test_set = data_prepare.load_datasets()
+def precision(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
 
-    early_stopping = EarlyStopping()
-    print(len(training_set))
-    print(len(val_set))
-    mc = ModelCheckpoint(model_name + '_bestmodel_' + time.strftime("%m%d_%H%M") + '.h5', monitor='val_f1_m', mode='max', save_best_only=True)
-    history = model.fit(training_set,
-                        steps_per_epoch=len(training_set),
-                        epochs=Config.EPOCHS,
-                        validation_data=val_set,
-                        validation_steps=len(val_set),
-                        verbose=1,
-                        callbacks=[mc])
-    print(history.history.keys())
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+def train(exist_data = True):
+    if not exist_data:
+        x_train, y_train, x_test, y_test = data_prepare()
+    else:
+        x_train = np.load('x_train.npy')
+        y_train = np.load('y_train.npy')
+        x_test = np.load('x_test.npy')
+        y_test = np.load('y_test.npy')
+    model = Model()
+    #model = VGG16()
+    model.compile(optimizer=tf.keras.optimizers.Adam(),
+                  loss='binary_crossentropy',
+                  metrics=['accuracy', f1, precision, recall])
+
+    mc = ModelCheckpoint('bestmodel_'+time.strftime("%m%d_%H%M")+'.h5', monitor='val_f1', mode='max', save_best_only=True)
+    hist = model.fit(x_train, y_train,
+                     batch_size=Config.BATCH_SIZE,
+                     shuffle=True,
+                     epochs=Config.EPOCHS,
+                     validation_data=(x_test, y_test),
+                     callbacks=[mc])
+    summarize_diagnostics(hist)
+    model.evaluate(x_test, y_test, batch_size=1)
     model.save('model_' + time.strftime("%Y%m%d_%H%M%S") + '.h5')
-    print("-- Evaluate --")
-    #_, acc = model.evaluate_generator(test_set, steps=len(test_set), verbose=0)
-    #_, acc = model.evaluate(val_set, steps=len(val_set), verbose=2)
-    k = model.evaluate(test_set, steps=len(test_set), verbose=0)
-    print(k)
-    loss, accuracy, f1_score, precision, recall = model.evaluate(test_set, steps=len(test_set), verbose=0)
-    print('Accuracy: {} %'.format(round(accuracy * 100.0, 3)))
-    print('f1_score: {} %'.format(f1_score))
-    np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-    print(test_set.class_indices)
 
-    # test_set.reset()
-    # print("-- Predict --")
-    # output = model.predict_generator(val_set)
-    # np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-    # print(val_set.class_indices)
-    # print(output)
-
-    summarize_diagnostics(history, model_name = model_name)
-
-
-def load_image (filename):
-    img = load_img(filename, target_size=(Config.IMAGE_SIZE, Config.IMAGE_SIZE))
-    #img = load_img(filename)
-    img = img_to_array(img)
-    img = img.reshape(1, Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3)
-    #img = img.reshape((Config.IMAGE_SIZE, Config.IMAGE_SIZE, 3))
-    img = img.astype('float32')
-    img = img - [123.68, 116.779, 103.939]
-    return img
-
-
-# batch norm 쓰고 가장 좋은거 bestmodel_20210715_165550
-def run_classifier():
-
-    # img = load_image('C:/Users/AI/PycharmProjects/class/datasets/test/upper/20210514_181704_person_2.jpg')
-    # result = model.predict(img)
-    # print(result[0])
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # cuda open success 안뜨게하기
-    if os.path.isdir(Config.TEST_CYCLE):
-        for file in os.scandir(Config.TEST_CYCLE):
+def clean_new_classified_folder():
+    if os.path.isdir(Config.test_save_cycle):
+        for file in os.scandir(Config.test_save_cycle):
             os.remove(file.path)
-    elif not os.path.isdir(Config.TEST_CYCLE):
-        os.mkdir(Config.TEST_CYCLE)
+    elif not os.path.isdir(Config.test_save_cycle):
+        os.mkdir(Config.test_save_cycle)
 
-    if os.path.isdir(Config.TEST_MULTI):
-        for file in os.scandir(Config.TEST_MULTI):
+    if os.path.isdir(Config.test_save_multi):
+        for file in os.scandir(Config.test_save_multi):
             os.remove(file.path)
-    elif not os.path.isdir(Config.TEST_MULTI):
-        os.mkdir(Config.TEST_MULTI)
+    elif not os.path.isdir(Config.test_save_multi):
+        os.mkdir(Config.test_save_multi)
 
-    if os.path.isdir(Config.TEST_UPPER):
-        for file in os.scandir(Config.TEST_UPPER):
+    if os.path.isdir(Config.test_save_upper):
+        for file in os.scandir(Config.test_save_upper):
             os.remove(file.path)
-    elif not os.path.isdir(Config.TEST_UPPER):
-        os.mkdir(Config.TEST_UPPER)
+    elif not os.path.isdir(Config.test_save_upper):
+        os.mkdir(Config.test_save_upper)
 
-    if os.path.isdir(Config.TEST_LOWER):
-        for file in os.scandir(Config.TEST_LOWER):
+    if os.path.isdir(Config.test_save_lower):
+        for file in os.scandir(Config.test_save_lower):
             os.remove(file.path)
-    elif not os.path.isdir(Config.TEST_LOWER):
-        os.mkdir(Config.TEST_LOWER)
+    elif not os.path.isdir(Config.test_save_lower):
+        os.mkdir(Config.test_save_lower)
 
-    if os.path.isdir(Config.TEST_NON):
-        for file in os.scandir(Config.TEST_NON):
+    if os.path.isdir(Config.test_save_non):
+        for file in os.scandir(Config.test_save_non):
             os.remove(file.path)
-    elif not os.path.isdir(Config.TEST_NON):
-        os.mkdir(Config.TEST_NON)
+    elif not os.path.isdir(Config.test_save_non):
+        os.mkdir(Config.test_save_non)
 
-    if os.path.isdir(Config.TEST_ONE):
-        for file in os.scandir(Config.TEST_ONE):
+    if os.path.isdir(Config.test_save_one):
+        for file in os.scandir(Config.test_save_one):
             os.remove(file.path)
-    elif not os.path.isdir(Config.TEST_ONE):
-        os.mkdir(Config.TEST_ONE)
-    model = load_model(Config.MODEL_NAME, custom_objects={'f1_m': f1_m,
-                                                          'precision_m': precision_m,
-                                                          'recall_m': recall_m
+    elif not os.path.isdir(Config.test_save_one):
+        os.mkdir(Config.test_save_one)
+
+def predict_and_save():
+    clean_new_classified_folder()
+    model = load_model(Config.MODEL_NAME, custom_objects={'f1': f1,
+                                                          'precision': precision,
+                                                          'recall': recall
                                                           })
-    #model = load_model(Config.MODEL_NAME, compile=True, custom_objects={'get_f1': get_f1})
-    predict_dataset = Config.VALIDATION_DIR
-    iter=0
-    for filename in tqdm(os.listdir(predict_dataset)):
-        iter += 1
-        #print("progress: {}, filename: {} ".format(progress, filename))
-        img = load_image(os.path.join(predict_dataset, filename))
-        #result = model.predict_generator(img)
-        result = model.predict(img)
-        #print(iter, result[0])
 
-        # 헷갈려하는 사진들이 뭔지 찾기
-        # if np.max(result[0]) < 0.8:
-        #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-        #     cv2.imwrite(os.path.join('dontknow/', filename), org_img)
+    for filename in tqdm(os.listdir(Config.test_dir)):
+        img = Image.open(os.path.join(Config.test_dir, filename))
+
+        test_img = img.resize((32, 32))
+        test_img = np.array(test_img)
+        test_img = test_img / 255.
+        pred = model.predict(test_img[tf.newaxis, ...])
+        if np.all(pred < 0.25):
+            plt.imsave(os.path.join(Config.test_save_non, filename), np.array(img))
+        elif np.argmax(pred) == 0:
+            plt.imsave(os.path.join(Config.test_save_cycle, filename), np.array(img))
+        elif np.argmax(pred) == 1:
+            plt.imsave(os.path.join(Config.test_save_lower, filename), np.array(img))
+        elif np.argmax(pred) == 2:
+            plt.imsave(os.path.join(Config.test_save_multi, filename), np.array(img))
+        elif np.argmax(pred) == 3:
+            plt.imsave(os.path.join(Config.test_save_one, filename), np.array(img))
+        elif np.argmax(pred) == 4:
+            plt.imsave(os.path.join(Config.test_save_upper, filename), np.array(img))
+
+def evaluate(x_test, y_test):
+    model = load_model(Config.MODEL_NAME, custom_objects={'f1': f1,
+                                                          'precision': precision,
+                                                          'recall': recall
+                                                          })
+    cnt_list = [0] * 6
+    ans_list = [0] * 6
+    for n in y_test:
+        if np.all(n == ((0., 0., 0., 0., 0.))):
+            cnt_list[5] += 1
+        elif np.all(n == ((1., 0., 0., 0., 0.))):
+            cnt_list[0] += 1
+        elif np.all(n == ((0., 1., 0., 0., 0.))):
+            cnt_list[1] += 1
+        elif np.all(n == ((0., 0., 1., 0., 0.))):
+            cnt_list[2] += 1
+        elif np.all(n == ((0., 0., 0., 1., 0.))):
+            cnt_list[3] += 1
+        elif np.all(n == ((0., 0., 0., 0., 1.))):
+            cnt_list[4] += 1
+
+    for idx in tqdm(range(len(x_test))):
+        pred = model.predict(x_test[idx][tf.newaxis, ...])
+        if np.all(pred < Config.threshold) and np.all(y_test[idx] == ((0., 0., 0., 0., 0.))):
+            ans_list[5] += 1
+        elif np.any(pred >= Config.threshold):
+            if np.argmax(pred) == 0 and np.all(y_test[idx] == ((1., 0., 0., 0., 0.))):
+                ans_list[0] += 1
+            elif np.argmax(pred) == 1 and np.all(y_test[idx] == ((0., 1., 0., 0., 0.))):
+                ans_list[1] += 1
+            elif np.argmax(pred) == 2 and np.all(y_test[idx] == ((0., 0., 1., 0., 0.))):
+                ans_list[2] += 1
+            elif np.argmax(pred) == 3 and np.all(y_test[idx] == ((0., 0., 0., 1., 0.))):
+                ans_list[3] += 1
+            elif np.argmax(pred) == 4 and np.all(y_test[idx] == ((0., 0., 0., 0., 1.))):
+                ans_list[4] += 1
+        #print(pred)
+    print("Cycle Accuracy: {} %".format(round(100. * ans_list[0] / cnt_list[0], 2)))
+    print("Lower Accuracy: {} %".format(round(100. * ans_list[1] / cnt_list[1], 2)))
+    print("Multi Accuracy: {} %".format(round(100. * ans_list[2] / cnt_list[2], 2)))
+    print("One Accuracy: {} %".format(round(100. * ans_list[3] / cnt_list[3], 2)))
+    print("Upper Accuracy: {} %".format(round(100. * ans_list[4] / cnt_list[4], 2)))
+    print("Non Accuracy: {} %".format(round(100. * ans_list[5] / cnt_list[5], 2)))
+    print("\nTOTAL Accuracy: {} %".format(round(100. * np.sum(ans_list) / np.sum(cnt_list), 2)))
 
 
-        if np.argmax(result[0]) == 0:
-            org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-            cv2.imwrite(os.path.join(Config.TEST_CYCLE, filename), org_img)
-        elif np.argmax(result[0]) == 1:
-            org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-            cv2.imwrite(os.path.join(Config.TEST_LOWER, filename), org_img)
-        elif np.argmax(result[0]) == 2:
-            org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-            cv2.imwrite(os.path.join(Config.TEST_MULTI, filename), org_img)
-        elif np.argmax(result[0]) == 3:
-            org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-            cv2.imwrite(os.path.join(Config.TEST_NON, filename), org_img)
-        elif np.argmax(result[0]) == 4:
-            org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-            cv2.imwrite(os.path.join(Config.TEST_ONE, filename), org_img)
-        elif np.argmax(result[0]) == 5:
-            org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-            cv2.imwrite(os.path.join(Config.TEST_UPPER, filename), org_img)
 
-        # if np.argmax(result[0]) == 0:
-        #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-        #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/cycle/', filename), org_img)
-        # elif np.argmax(result[0]) == 1:
-        #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-        #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/lower/', filename), org_img)
-        # elif np.argmax(result[0]) == 2:
-        #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-        #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/multi_human/', filename), org_img)
-        #
-        # elif np.argmax(result[0]) == 3:
-        #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-        #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/one_human/', filename), org_img)
-        # elif np.argmax(result[0]) == 4:
-        #     org_img = cv2.imread(os.path.join(predict_dataset, filename), cv2.IMREAD_COLOR)
-        #
-        #     cv2.imwrite(os.path.join('C:/Users/AI/PycharmProjects/class/new_classified/upper/', filename), org_img)
 
 if __name__ == '__main__':
-    #run_classifier()
-    train(model_name="model_my1")
-    #train(model_name="model_my2")
-    # train(model_name="model_my3")
-    # train(model_name="model_my4")
-    #train(model_name="model_vgg16")
+    x_test = np.load('x_test.npy')
+    y_test = np.load('y_test.npy')
+    # test_batch = x_test[:32]
+
+
+    train(exist_data=False)
+    #predict_and_save()
+    #evaluate(x_test, y_test)
+
+
+
+    # model = load_model('model_20210723_113621.h5')
+    # img = Image.open('20210424_132705_person_3.jpg').convert('L')
+    # img = img.resize((32, 32), Image.ANTIALIAS)
+    # plt.imshow(img, 'gray')
+    # plt.show()
+    # img = np.array(img)
+    # img = img / 255.
+    # preds = model.predict(img[tf.newaxis, ..., tf.newaxis])
+    # print(preds)
+    # print(np.argmax(preds, -1))
+
+
+
 
