@@ -10,19 +10,31 @@ def Model():
     net = layers.Conv2D(32, 3, padding='same')(inputs)
     net = layers.Activation('relu')(net)
 
-    net = layers.Conv2D(32, 3, padding='same', kernel_regularizer=regularizers.l1(0.01))(net)
+    net = layers.Conv2D(32, 3, padding='same')(net)
+    # net = layers.BatchNormalization()(net)
+    net = layers.Activation('relu')(net)
+    net = layers.Dropout(0.1)(net)
+
+    net = layers.Conv2D(32, 3, padding='same')(net)
+    net = layers.BatchNormalization()(net)
+    net = layers.Activation('relu')(net)
+    net = layers.Dropout(0.1)(net)
+    net = layers.MaxPool2D((2, 2))(net)
+
+    net = layers.Conv2D(64, 3, padding='same')(net)
+    net = layers.BatchNormalization()(net)
+    net = layers.Activation('relu')(net)
+
+    net = layers.Conv2D(64, 3, padding='same')(net)
+    net = layers.BatchNormalization()(net)
+    net = layers.Activation('relu')(net)
+    net = layers.Dropout(0.2)(net)
+
+    net = layers.Conv2D(64, 3, padding='same')(net)
     net = layers.BatchNormalization()(net)
     net = layers.Activation('relu')(net)
     net = layers.MaxPool2D((2, 2))(net)
-
-    net = layers.Conv2D(64, 3, padding='same', kernel_regularizer=regularizers.l1(0.01))(net)
-    net = layers.BatchNormalization()(net)
-    net = layers.Activation('relu')(net)
-
-    net = layers.Conv2D(64, 3, padding='same', kernel_regularizer=regularizers.l1(0.01))(net)
-    net = layers.BatchNormalization()(net)
-    net = layers.Activation('relu')(net)
-    net = layers.MaxPool2D((2, 2))(net)
+    net = layers.Dropout(0.3)(net)
 
     net = layers.Flatten()(net)
     net = layers.Dense(256)(net)
