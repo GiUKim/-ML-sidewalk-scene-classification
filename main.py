@@ -1,17 +1,14 @@
 
-import numpy as np
-
-from data_prepare import *
 from utils import *
 from model import *
-from config import *
 
 
 if __name__ == '__main__':
 
-    #train(exist_data=True)
+    model = Model_skip()
+    train(exist_data=True, model=model)
 
-    predict_and_save()
+    #predict_and_save()
 
     #evaluate()
 

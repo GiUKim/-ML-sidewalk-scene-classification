@@ -30,7 +30,7 @@ def data_prepare():
         for img in tqdm(img_path):
             #img = Image.open(img).convert('L')
             img = Image.open(img)
-            img = img.resize((32, 32), Image.ANTIALIAS)
+            img = img.resize((Config.IMAGE_SIZE, Config.IMAGE_SIZE), Image.ANTIALIAS)
             img = np.array(img)
             img = img / 255.
             list.append(img)

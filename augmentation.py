@@ -5,9 +5,9 @@ import numpy as np
 from config import Config
 import imutils
 inst = {'flip': 0,
-        'GaussianBlur': 1,
+        'GaussianBlur': 0,
         'brightness': 1,
-        'rotate': 1
+        'rotate': 0
        }
 
 # metric
@@ -15,7 +15,7 @@ remove_augmentation = False
 brightness = 10
 rotate_angle = 10
 gaussian_kernel = 5
-class_name = 'upper' # upper
+class_name = 'multi_human' # upper
 iter = 0
 directory = Config.base_dir + 'datasets/train/'+class_name
 file_list = [filenames for (filenames) in os.listdir(directory)]
@@ -23,7 +23,7 @@ file_list_jpg = [file for file in file_list if file.endswith(".jpg")]
 if not remove_augmentation:
     for filename in tqdm(os.listdir(directory)):
         iter += 1
-        if iter >10000:
+        if iter >6500:
             break
         img_path = os.path.join(directory, filename)
         size = os.path.getsize(img_path)

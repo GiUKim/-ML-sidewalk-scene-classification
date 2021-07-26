@@ -1,3 +1,5 @@
+import configparser
+
 import tensorflow as tf
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -82,7 +84,7 @@ def f1(y_true, y_pred):
     recall = recall(y_true, y_pred)
     return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
-def train(exist_data = True):
+def train(exist_data = True, model=None):
     if not exist_data:
         x_train, y_train, x_test, y_test = data_prepare()
     else:
@@ -90,7 +92,7 @@ def train(exist_data = True):
         y_train = np.load('y_train.npy')
         x_test = np.load('x_test.npy')
         y_test = np.load('y_test.npy')
-    model = Model()
+    #model = Model3()
     #model = VGG16()
     model.compile(optimizer=tf.keras.optimizers.Adam(),
                   loss='binary_crossentropy',
@@ -154,7 +156,7 @@ def predict_and_save():
     for filename in tqdm(os.listdir(Config.test_dir)):
         img = Image.open(os.path.join(Config.test_dir, filename))
 
-        test_img = img.resize((32, 32))
+        test_img = img.resize((Config.IMAGE_SIZE, Config.IMAGE_SIZE))
         test_img = np.array(test_img)
         test_img = test_img / 255.
         pred = model.predict(test_img[tf.newaxis, ...])
