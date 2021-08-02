@@ -4,26 +4,28 @@ import os
 import numpy as np
 from config import Config
 import imutils
-inst = {'flip': 0,
-        'GaussianBlur': 0,
-        'brightness': 1,
-        'rotate': 0
-       }
 
-# metric
-remove_augmentation = False
+# controller
+inst = {'flip': 1,
+        'GaussianBlur': 1,
+        'brightness': 1,
+        'rotate': 1
+       }
+remove_augmentation = True
 brightness = 10
-rotate_angle = 10
+rotate_angle = 5
 gaussian_kernel = 5
-class_name = 'multi_human' # upper
+class_name = 'cycle' # upper
 iter = 0
 directory = Config.base_dir + 'datasets/train/'+class_name
+
 file_list = [filenames for (filenames) in os.listdir(directory)]
 file_list_jpg = [file for file in file_list if file.endswith(".jpg")]
+
 if not remove_augmentation:
     for filename in tqdm(os.listdir(directory)):
         iter += 1
-        if iter >6500:
+        if iter >15000:
             break
         img_path = os.path.join(directory, filename)
         size = os.path.getsize(img_path)
@@ -38,7 +40,7 @@ if not remove_augmentation:
                 cv2.imwrite(Config.base_dir + "datasets/train/"+class_name+"/AUG_FLIP_"+filename, gen)
             if inst['GaussianBlur']:
                 # Gaussian blur
-                gen = cv2.GaussianBlur(org, (gaussian_kernel, gaussian_kernel), 0)
+                gen = cv2.GaussianBlur(org, (0, 0), 3)
                 cv2.imwrite(Config.base_dir + "datasets/train/"+class_name+"/AUG_GAUSS_"+filename, gen)
             if inst['brightness']:
                 # brightness up

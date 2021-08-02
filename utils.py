@@ -92,6 +92,7 @@ def train(exist_data = True, model=None):
         y_train = np.load('y_train.npy')
         x_test = np.load('x_test.npy')
         y_test = np.load('y_test.npy')
+
     #model = Model3()
     #model = VGG16()
     model.compile(optimizer=tf.keras.optimizers.Adam(),
@@ -160,7 +161,7 @@ def predict_and_save():
         test_img = np.array(test_img)
         test_img = test_img / 255.
         pred = model.predict(test_img[tf.newaxis, ...])
-        if np.all(pred < 0.25):
+        if np.all(pred < Config.threshold):
             plt.imsave(os.path.join(Config.test_save_non, filename), np.array(img))
         elif np.argmax(pred) == 0:
             plt.imsave(os.path.join(Config.test_save_cycle, filename), np.array(img))
@@ -180,6 +181,7 @@ def evaluate():
                                                           'precision': precision,
                                                           'recall': recall
                                                           })
+    print(model.summary())
     cnt_list = [0] * 6
     ans_list = [0] * 6
     for n in y_test:

@@ -31,16 +31,12 @@ def data_prepare():
             #img = Image.open(img).convert('L')
             img = Image.open(img)
             img = img.resize((Config.IMAGE_SIZE, Config.IMAGE_SIZE), Image.ANTIALIAS)
-            img = np.array(img)
-            img = img / 255.
-            list.append(img)
-        return list
+            img_np = np.array(img)
+            img.close()
+            img_np = img_np / 255.
+            list.append(img_np)
 
-    # def list_to_numpy(list):
-    #     list = np.dstack(list)
-    #     shp = list.shape
-    #     list = list.reshape(shp[-1], shp[0], shp[1])
-    #     return list
+        return list
 
     cycle_train_list = np.array(load_img_to_list(cycle_train_dir))
     lower_train_list = np.array(load_img_to_list(lower_train_dir))
@@ -100,10 +96,10 @@ def data_prepare():
     for i in non_test_list:
         y_test.append(np.array((0, 0, 0, 0, 0)))
     y_test = np.array(y_test)
-    np.save('C:/Users/AI/PycharmProjects/class_2/x_train', x_train)
-    np.save('C:/Users/AI/PycharmProjects/class_2/y_train', y_train)
-    np.save('C:/Users/AI/PycharmProjects/class_2/x_test', x_test)
-    np.save('C:/Users/AI/PycharmProjects/class_2/y_test', y_test)
+    np.save(Config.base_dir + 'x_train', x_train)
+    np.save(Config.base_dir + 'y_train', y_train)
+    np.save(Config.base_dir + 'x_test', x_test)
+    np.save(Config.base_dir + 'y_test', y_test)
 
     return x_train, y_train, x_test, y_test
 

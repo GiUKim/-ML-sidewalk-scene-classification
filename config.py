@@ -1,9 +1,9 @@
 from glob import glob
 
 class Config(object):
-    # CNN model input size
-    base_dir = 'C:/Users/AI/PycharmProjects/class_2/'
-    test_dir = base_dir + 'new_classfied_one_human'
+
+    base_dir = 'C:/Users/AI/PycharmProjects/person_classifier/'
+    test_dir = base_dir + 'datasets/test_prac'
     test_save_cycle = base_dir + 'new_classified/cycle'
     test_save_upper = base_dir + 'new_classified/upper'
     test_save_lower = base_dir + 'new_classified/lower'
@@ -26,13 +26,15 @@ class Config(object):
     non_test_dir = glob(base_dir + 'datasets/test/non_human/*.jpg')
 
     IMAGE_SIZE = 32
-    threshold = 0.5
-    #INPUT_SHAPE = (224, 224, 3)
+    threshold = 0.1
+
+
     INPUT_SHAPE = (IMAGE_SIZE, IMAGE_SIZE, 3)
+
     # 클래수 개수
     NUM_CLASSES = 5
-    EPOCHS = 10
+    EPOCHS = 20
     BATCH_SIZE = 32
+
     # .h5 모델 경로
-    #C:\Users\123\Desktop\ML_sidewalk - scene - classification - master\ML_sidewalk - scene - classification - master
-    MODEL_NAME = base_dir + 'bestmodel_0726_1717.h5'
+    MODEL_NAME = base_dir + 'bestmodel_0802_1151.h5'
